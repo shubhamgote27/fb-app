@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FB Ultimate Tool | Scheduler</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .selected-media { border: 3px solid #3b82f6; background-color: #eff6ff; }
+        .loader { border-top-color: #3b82f6; -webkit-animation: spinner 1.5s linear infinite; animation: spinner 1.5s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .pulse-dot {
+            display: inline-block; width: 8px; height: 8px; background-color: #22c55e; border-radius: 50%;
+            box-shadow: 0 0 0 rgba(34, 197, 94, 0.4);
+            animation: pulse-green 2s infinite;
+        }
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2563eb',
+                        secondary: '#475569',
+                        fb: '#1877F2',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 h-screen overflow-hidden flex text-slate-800">
+
+    <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-xl shrink-0">
+        <div class="p-6 border-b border-slate-700">
+            <h1 class="text-xl font-bold tracking-wide flex items-center gap-2">
+                <i class="fa-brands fa-facebook text-fb text-2xl"></i>
+                Ultimate Tool
+            </h1>
+        </div>
+        
+        <nav class="flex-1 p-4 space-y-2">
+            <button onclick="showSection('dashboard')" class="nav-btn w-full text-left px-4 py-3 rounded-lg hover:bg-slate-800 transition flex items-center gap-3 bg-slate-800">
+                <i class="fa-solid fa-chart-line w-5"></i> Dashboard
+            </button>
+            <button onclick="showSection('pages')" class="nav-btn w-full text-left px-4 py-3 rounded-lg hover:bg-slate-800 transition flex items-center gap-3">
+                <i class="fa-solid fa-flag w-5"></i> Manage Pages
+            </button>
+            <button onclick="showSection('media')" class="nav-btn w-full text-left px-4 py-3 rounded-lg hover:bg-slate-800 transition flex items-center gap-3">
+                <i class="fa-solid fa-photo-film w-5"></i> Media Library
+            </button>
+            <button onclick="showSection('schedule')" class="nav-btn w-full text-left px-4 py-3 rounded-lg hover:bg-slate-800 transition flex items-center gap-3">
+                <i class="fa-solid fa-calendar-plus w-5"></i> Create Schedule
+            </button>
+            <button onclick="showSection('queue')" class="nav-btn w-full text-left px-4 py-3 rounded-lg hover:bg-slate-800 transition flex items-center gap-3">
+                <i class="fa-solid fa-list-check w-5"></i> Task Queue
+            </button>
+        </nav>
+
+        <div class="p-4 border-t border-slate-700 text-xs text-slate-400 text-center">
+            v2.5.0 Bulk Queue Actions
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <header class="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-8 shadow-sm shrink-0">
+            <div class="flex items-center gap-4">
+                <h2 id="page-title" class="text-xl font-semibold text-slate-700">Dashboard</h2>
+                <div class="hidden md:flex items-center gap-2 text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full border border-green-200">
+                    <span class="pulse-dot"></span> Auto-Scheduler Running
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <button onclick="runWorker(false)" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-md text-sm font-medium transition flex items-center gap-2">
+                    <i class="fa-solid fa-robot"></i> Force Run
+                </button>
+                <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2"></div>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto custom-scroll bg-slate-50 p-8 relative">
+
+            <div id="view-dashboard" class="view-section">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <div class="text-slate-500 text-sm font-medium uppercase">Total Pages</div>
+                        <div class="text-3xl font-bold text-slate-800 mt-2" id="dash-pages-count">-</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <div class="text-slate-500 text-sm font-medium uppercase">Scheduled Posts</div>
+                        <div class="text-3xl font-bold text-blue-600 mt-2" id="dash-scheduled-count">-</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <div class="text-slate-500 text-sm font-medium uppercase">Failed Jobs</div>
+                        <div class="text-3xl font-bold text-red-500 mt-2" id="dash-failed-count">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-pages" class="view-section hidden">
+                <div class="flex justify-end mb-6">
+                    <button onclick="toggleModal('add-page-modal')" class="bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition">
+                        <i class="fa-solid fa-plus mr-2"></i> Connect New Page
+                    </button>
+                </div>
+                <div id="pages-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </div>
+
+            <div id="view-media" class="view-section hidden h-full flex flex-col">
+                <div class="flex gap-6 h-full">
+                    <div class="w-64 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col shrink-0">
+                        <div class="p-4 border-b border-slate-100 font-semibold text-slate-600 flex justify-between items-center">
+                            <span>Folders</span>
+                            <button onclick="createFolder()" class="text-blue-500 hover:text-blue-700" title="Create Folder"><i class="fa-solid fa-folder-plus"></i></button>
+                        </div>
+                        <div id="folder-list" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
+                    </div>
+                    
+                    <div class="flex-1 flex flex-col gap-4">
+                        <div class="bg-white border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-blue-500 transition cursor-pointer relative group h-32 flex flex-col justify-center" id="drop-zone">
+                            <input type="file" id="media-upload-input" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleFiles(this.files)">
+                            <div class="group-hover:text-blue-500 transition">
+                                <i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-300 mb-1 group-hover:text-blue-500"></i>
+                                <p class="text-slate-600 text-sm font-medium">Drag & Drop files here</p>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center px-1">
+                            <h3 class="font-semibold text-slate-700" id="gallery-title">Gallery</h3>
+                            <div class="flex gap-3">
+                                <button onclick="toggleLibrarySelectAll()" class="text-xs font-medium text-blue-600 hover:underline">Select All</button>
+                                <button onclick="bulkDeleteMedia()" id="btn-bulk-delete" class="hidden bg-red-50 text-red-600 px-3 py-1 rounded text-xs font-bold hover:bg-red-100 border border-red-200 transition">
+                                    Delete Selected (<span id="bulk-count">0</span>)
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="media-gallery" class="flex-1 bg-white rounded-xl border border-slate-200 p-4 overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 content-start"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-schedule" class="view-section hidden">
+                <div class="flex flex-col lg:flex-row gap-6">
+                    <div class="lg:w-1/3 bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-6 h-fit">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Title Template</label>
+                            <input type="text" id="sched-title" placeholder="Check this out! [HH:MM]" class="w-full border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Description Template</label>
+                            <textarea id="sched-desc" rows="4" placeholder="Full description here..." class="w-full border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"></textarea>
+                        </div>
+                        <div class="pt-4 border-t border-slate-100 space-y-3">
+                            <button onclick="triggerSchedule('auto')" class="w-full bg-primary text-white py-3 rounded-lg font-medium shadow hover:bg-blue-700 transition">
+                                <i class="fa-solid fa-clock mr-2"></i> Schedule Automatically
+                            </button>
+                            <button onclick="triggerSchedule('now')" class="w-full bg-white border border-slate-300 text-slate-700 py-2 rounded-lg font-medium hover:bg-slate-50 transition">
+                                <i class="fa-solid fa-paper-plane mr-2"></i> Post Immediately
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1 space-y-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-semibold text-slate-700">1. Select Media</h3>
+                                <div class="flex gap-3 text-xs items-center">
+                                    <button onclick="toggleAllMedia()" class="text-blue-600 font-medium hover:underline">Select All</button>
+                                    <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded-full" id="selected-media-count">0 selected</span>
+                                </div>
+                            </div>
+                            <div id="sched-media-grid" class="grid grid-cols-3 md:grid-cols-5 gap-4 max-h-80 overflow-y-auto p-1"></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-semibold text-slate-700">2. Select Target Pages</h3>
+                                <button onclick="toggleAllPages()" class="text-xs text-blue-600 font-medium hover:underline">Select All</button>
+                            </div>
+                            <div id="sched-pages-list" class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-queue" class="view-section hidden">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                        <h3 class="font-bold text-slate-700">Scheduled Tasks</h3>
+                        <button onclick="bulkDeleteQueue()" id="btn-queue-delete" class="hidden bg-red-50 text-red-600 px-3 py-1.5 rounded text-xs font-bold hover:bg-red-100 border border-red-200 transition">
+                            Delete Selected (<span id="queue-bulk-count">0</span>)
+                        </button>
+                    </div>
+
+                    <table class="w-full text-sm text-left text-slate-500">
+                        <thead class="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th class="px-6 py-3 w-10">
+                                    <input type="checkbox" onchange="toggleQueueSelectAll(this)" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                </th>
+                                <th class="px-6 py-3">Page</th>
+                                <th class="px-6 py-3">Media</th>
+                                <th class="px-6 py-3">Scheduled For</th>
+                                <th class="px-6 py-3">Status</th>
+                                <th class="px-6 py-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="queue-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="add-page-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-800">Connect Page</h3>
+                <button onclick="toggleModal('add-page-modal')" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <form onsubmit="handleAddPage(event)" class="space-y-4">
+                <input type="text" name="name" placeholder="Page Name" required class="w-full border-slate-300 rounded-md">
+                <input type="text" name="id" placeholder="Page ID" required class="w-full border-slate-300 rounded-md">
+                <textarea name="token" placeholder="Access Token" rows="3" required class="w-full border-slate-300 rounded-md"></textarea>
+                <div class="flex gap-4"><label><input type="checkbox" name="allowImages" checked> Images</label><label><input type="checkbox" name="allowVideos" checked> Videos</label></div>
+                <button type="submit" class="w-full bg-primary text-white py-2 rounded-lg">Save Page</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="edit-time-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-800">Reschedule</h3>
+                <button onclick="toggleModal('edit-time-modal')" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="space-y-4">
+                <input type="datetime-local" id="edit-time-input" class="w-full border-slate-300 rounded-md">
+                <button onclick="submitEditTime()" class="w-full bg-primary text-white py-2 rounded-lg">Update</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentFolderId = null, selectedMediaIds = new Set(), currentEditPostId = null, countdownInterval = null;
+        let currentSchedulerMedia = [];
+        let currentLibraryMedia = [];
+        let selectedLibraryIds = new Set();
+        
+        // Queue Selection
+        let selectedQueueIds = new Set();
+
+        function showSection(id) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            document.getElementById('view-' + id).classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('bg-slate-800'));
+            event.currentTarget.classList.add('bg-slate-800');
+            document.getElementById('page-title').innerText = id.charAt(0).toUpperCase() + id.slice(1);
+            
+            if(id === 'dashboard') loadDashboard();
+            if(id === 'pages') loadPages();
+            if(id === 'media') { loadFolders(); loadMedia(); }
+            if(id === 'schedule') { loadMediaForScheduler(); loadPagesForScheduler(); }
+            if(id === 'queue') { selectedQueueIds.clear(); updateQueueBulkUI(); loadQueue(); }
+            else clearInterval(countdownInterval);
+        }
+
+        function toggleModal(id) { const el = document.getElementById(id); el.classList.toggle('hidden'); el.classList.toggle('flex'); }
+        function showToast(msg, type='success') {
+            const container = document.getElementById('toast-container');
+            const div = document.createElement('div');
+            const color = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+            div.className = `${color} text-white px-4 py-2 rounded shadow-lg text-sm font-medium transition transform duration-500 opacity-0 translate-y-2`;
+            div.innerHTML = msg;
+            container.appendChild(div);
+            setTimeout(() => div.classList.remove('opacity-0', 'translate-y-2'), 10);
+            setTimeout(() => { div.classList.add('opacity-0', 'translate-y-2'); setTimeout(() => div.remove(), 500); }, 3000);
+        }
+
+        async function apiCall(url, method='GET', body=null) {
+            try {
+                const options = { method, headers: {} };
+                if(body && !(body instanceof FormData)) { options.headers['Content-Type'] = 'application/json'; options.body = JSON.stringify(body); } 
+                else if (body instanceof FormData) options.body = body;
+                const res = await fetch(url, options);
+                const data = await res.json();
+                if(!res.ok) throw new Error(data.error || 'Request failed');
+                return data;
+            } catch (e) { showToast(e.message, 'error'); return null; }
+        }
+
+        async function runWorker(silent = false) {
+            const res = await apiCall('/api/worker/run', 'POST');
+            if(res && (res.success_count > 0 || res.failed_count > 0)) { loadQueue(); loadDashboard(); showToast(`Auto-Worker: ${res.success_count} sent.`); }
+            else if(res && !silent) showToast(res.message);
+        }
+        setInterval(() => runWorker(true), 10000);
+
+        async function loadPages() {
+            const pages = await apiCall('/api/pages');
+            const el = document.getElementById('pages-grid'); el.innerHTML = '';
+            if(pages) pages.forEach(p => el.innerHTML += `<div class="bg-white p-5 rounded-lg shadow-sm border border-slate-200 relative group"><button onclick="deletePage(${p.id})" class="absolute top-3 right-3 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-trash"></i></button><div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"><i class="fa-brands fa-facebook-f"></i></div><div><h4 class="font-bold text-slate-700 truncate w-40">${p.page_name}</h4><span class="text-xs font-mono text-slate-400">${p.page_id}</span></div></div><div class="mt-4 text-xs text-slate-400 flex justify-between"><span>${p.is_valid?'Active':'Invalid'}</span><span>${p.allow_images?'Img ':''}${p.allow_videos?'Vid':''}</span></div></div>`);
+        }
+        async function handleAddPage(e) { e.preventDefault(); const f = e.target; await apiCall('/api/pages', 'POST', { name: f.name.value, id: f.id.value, token: f.token.value, allowImages: f.allowImages.checked, allowVideos: f.allowVideos.checked }); showToast('Page added'); toggleModal('add-page-modal'); f.reset(); loadPages(); }
+        async function deletePage(id) { if(confirm('Delete?')) await apiCall(`/api/pages/${id}`, 'DELETE'); loadPages(); }
+
+        async function loadFolders() {
+            const fs = await apiCall('/api/folders');
+            const l = document.getElementById('folder-list'); l.innerHTML = '';
+            if(fs && fs.length > 0) {
+                if(!currentFolderId) currentFolderId = fs[0].id;
+                fs.forEach(f => {
+                    const isActive = currentFolderId === f.id;
+                    const deleteBtn = (f.name !== 'Default Folder') ? `<button onclick="deleteFolder(${f.id}, event)" class="text-slate-400 hover:text-red-500 ml-2"><i class="fa-solid fa-trash"></i></button>` : '';
+                    l.innerHTML += `<div onclick="switchFolder(${f.id})" class="cursor-pointer px-3 py-2 rounded text-sm flex justify-between items-center group ${isActive?'bg-blue-50 text-blue-600':'text-slate-600 hover:bg-slate-50'}"><div class="flex items-center overflow-hidden"><i class="fa-regular fa-folder mr-2 shrink-0"></i><span class="truncate">${f.name}</span></div><div class="flex items-center"><span class="text-xs bg-white border border-slate-200 px-1.5 rounded text-slate-400 mr-1">${f.file_count}</span>${deleteBtn}</div></div>`;
+                });
+            }
+        }
+        function switchFolder(id) { currentFolderId = id; selectedLibraryIds.clear(); updateBulkUI(); loadFolders(); loadMedia(); }
+        async function createFolder() { const n = prompt("Name:"); if(n) await apiCall('/api/folders', 'POST', {name:n}); loadFolders(); }
+        async function deleteFolder(id, e) { e.stopPropagation(); if(!confirm("Delete folder AND all files inside?")) return; const res = await apiCall(`/api/folders/${id}`, 'DELETE'); if(res) { showToast("Folder deleted"); if(currentFolderId === id) currentFolderId = null; loadFolders(); loadMedia(); } }
+
+        // --- Media Library ---
+        async function loadMedia() {
+            if(!currentFolderId) return;
+            const m = await apiCall(`/api/media?folderId=${currentFolderId}`);
+            currentLibraryMedia = m || [];
+            const g = document.getElementById('media-gallery'); g.innerHTML = '';
+            
+            if(m) m.forEach(x => {
+                const isSel = selectedLibraryIds.has(x.id);
+                const content = x.type.includes('image') 
+                    ? `<img src="/media/${x.filename}" class="w-full h-full object-contain bg-slate-100">`
+                    : `<div class="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400"><i class="fa-solid fa-video text-3xl"></i></div>`;
+
+                g.innerHTML += `
+                    <div onclick="toggleLibrarySelect(${x.id}, this)" class="relative group aspect-square bg-white rounded border shadow-sm overflow-hidden cursor-pointer transition ${isSel ? 'selected-media' : 'border-slate-200'}">
+                        ${content}
+                        ${isSel ? '<div class="absolute top-2 right-2 bg-blue-500 text-white p-1 rounded-full shadow z-10"><i class="fa-solid fa-check text-xs"></i></div>' : ''}
+                        <div class="absolute bottom-0 w-full bg-white/90 p-1 text-[10px] truncate text-center border-t border-slate-100">${x.name}</div>
+                    </div>`;
+            });
+        }
+        
+        function toggleLibrarySelect(id, el) { if(selectedLibraryIds.has(id)) selectedLibraryIds.delete(id); else selectedLibraryIds.add(id); updateBulkUI(); loadMedia(); }
+        function toggleLibrarySelectAll() { if(!currentLibraryMedia.length) return; const all = currentLibraryMedia.every(m => selectedLibraryIds.has(m.id)); if(all) selectedLibraryIds.clear(); else currentLibraryMedia.forEach(m => selectedLibraryIds.add(m.id)); updateBulkUI(); loadMedia(); }
+        function updateBulkUI() { const count = selectedLibraryIds.size; document.getElementById('bulk-count').innerText = count; const btn = document.getElementById('btn-bulk-delete'); if(count > 0) btn.classList.remove('hidden'); else btn.classList.add('hidden'); }
+        async function bulkDeleteMedia() { if(!confirm(`Delete ${selectedLibraryIds.size} files?`)) return; for(let id of selectedLibraryIds) await apiCall(`/api/media/${id}`, 'DELETE'); selectedLibraryIds.clear(); updateBulkUI(); loadMedia(); loadFolders(); showToast("Bulk delete complete"); }
+        async function handleFiles(files) { if(!currentFolderId) return alert("Select folder"); const fd = new FormData(); fd.append('folderId', currentFolderId); for(let f of files) fd.append('mediaFiles', f); document.getElementById('drop-zone').innerHTML = '<div class="text-blue-500 font-bold">Uploading...</div>'; const res = await apiCall('/api/upload_media', 'POST', fd); document.getElementById('drop-zone').innerHTML = '<input type="file" class="hidden"><i class="fa-solid fa-cloud-arrow-up text-4xl text-slate-300"></i><p class="text-slate-600">Upload</p>'; if(res) { showToast("Uploaded!"); loadMedia(); loadFolders(); } }
+
+        // --- Scheduler ---
+        async function loadMediaForScheduler() {
+            const m = await apiCall(`/api/media?folderId=${currentFolderId}`);
+            currentSchedulerMedia = m || [];
+            const g = document.getElementById('sched-media-grid'); g.innerHTML = '';
+            if(m) m.forEach(x => {
+                const sel = selectedMediaIds.has(x.id);
+                const content = x.type.includes('image') 
+                    ? `<img src="/media/${x.filename}" class="w-full h-full object-contain bg-slate-100">`
+                    : `<div class="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400"><i class="fa-solid fa-video text-2xl"></i></div>`;
+                
+                const div = document.createElement('div');
+                div.className = `aspect-square bg-white rounded border cursor-pointer relative overflow-hidden ${sel?'ring-2 ring-blue-500':''}`;
+                div.onclick = () => { sel ? selectedMediaIds.delete(x.id) : selectedMediaIds.add(x.id); loadMediaForScheduler(); document.getElementById('selected-media-count').innerText = `${selectedMediaIds.size} selected`; };
+                div.innerHTML = `${content}${sel?'<div class="absolute top-1 right-1 bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] z-10"><i class="fa-solid fa-check"></i></div>':''}`;
+                g.appendChild(div);
+            });
+            document.getElementById('selected-media-count').innerText = `${selectedMediaIds.size} selected`;
+        }
+        function toggleAllMedia() { if(!currentSchedulerMedia.length) return; const all = currentSchedulerMedia.every(m => selectedMediaIds.has(m.id)); if(all) selectedMediaIds.clear(); else currentSchedulerMedia.forEach(m => selectedMediaIds.add(m.id)); loadMediaForScheduler(); }
+        async function loadPagesForScheduler() { const p = await apiCall('/api/pages'); document.getElementById('sched-pages-list').innerHTML = p.map(x => `<label class="flex items-center p-2 border rounded hover:bg-slate-50"><input type="checkbox" name="schedPages" value="${x.id}" class="mr-2 text-blue-600 rounded">${x.page_name}</label>`).join(''); }
+        function toggleAllPages() { document.getElementsByName('schedPages').forEach(c => c.checked = !c.checked); }
+        async function triggerSchedule(mode) { const pIds = [...document.querySelectorAll('input[name="schedPages"]:checked')].map(x=>x.value); const mIds = [...selectedMediaIds]; if(!pIds.length || !mIds.length) return showToast("Select pages and media", "error"); const res = await apiCall(mode==='auto'?'/api/schedule_automation':'/api/schedule_now', 'POST', { mediaIds: mIds, pageIds: pIds, titleTemplate: document.getElementById('sched-title').value, descriptionTemplate: document.getElementById('sched-desc').value }); if(res) { showToast(res.message); selectedMediaIds.clear(); loadMediaForScheduler(); } }
+
+        // --- Queue (UPDATED) ---
+        async function loadQueue() {
+            const posts = await apiCall('/api/schedule');
+            const tb = document.getElementById('queue-table-body'); tb.innerHTML = '';
+            
+            if(posts) {
+                // Enable bulk delete button if needed
+                const allSelected = posts.length > 0 && posts.every(p => selectedQueueIds.has(p.id));
+                document.querySelector('thead input[type="checkbox"]').checked = allSelected;
+
+                posts.sort((a,b) => b.scheduled_time - a.scheduled_time).forEach(p => {
+                    const d = new Date(p.scheduled_time*1000).toLocaleString();
+                    const isChecked = selectedQueueIds.has(p.id) ? 'checked' : '';
+                    
+                    let st = `<span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold uppercase">${p.status}</span>`;
+                    if(p.status === 'posted') {
+                        const link = p.fb_post_id ? `https://www.facebook.com/${p.fb_post_id}` : '#';
+                        const viewBtn = p.fb_post_id ? `<a href="${link}" target="_blank" class="ml-2 text-[10px] bg-blue-50 text-blue-600 border border-blue-200 px-2 py-0.5 rounded hover:bg-blue-100 transition"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>View</a>` : '';
+                        st = `<div class="flex items-center"><span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">POSTED</span>${viewBtn}</div>`;
+                    }
+                    if(p.status === 'failed') st = `<div><span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">FAILED</span><div class="text-[10px] text-red-600 mt-1 font-mono bg-red-50 p-1 rounded border border-red-100 max-w-[200px]">${p.error_message || "Unknown API Error"}</div></div>`;
+                    
+                    const timer = p.status === 'scheduled' ? `<div class="queue-timer text-xs text-blue-600 mt-1 font-mono" data-time="${p.scheduled_time}">...</div>` : '';
+                    const btns = `
+                        <button onclick="openEditTimeModal(${p.id},${p.scheduled_time})" class="text-slate-400 hover:text-blue-500 mr-2"><i class="fa-solid fa-clock"></i></button>
+                        ${p.status === 'failed' ? `<button onclick="retryPost(${p.id})" class="text-blue-600 hover:underline text-xs mr-2">Retry</button>` : ''}
+                        <button onclick="deletePost(${p.id})" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
+                    `;
+                    
+                    tb.innerHTML += `
+                        <tr class="border-b hover:bg-slate-50 align-top">
+                            <td class="px-6 py-4"><input type="checkbox" onchange="toggleQueueSelect(${p.id})" ${isChecked} class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"></td>
+                            <td class="px-6 py-4 font-medium">${p.page_name}</td>
+                            <td class="px-6 py-4 text-xs truncate max-w-[150px] text-slate-500">${p.media_name}</td>
+                            <td class="px-6 py-4 text-sm">${d}${timer}</td>
+                            <td class="px-6 py-4">${st}</td>
+                            <td class="px-6 py-4 text-right">${btns}</td>
+                        </tr>`;
+                });
+            }
+            startCountdownLoop();
+        }
+
+        function toggleQueueSelect(id) {
+            if(selectedQueueIds.has(id)) selectedQueueIds.delete(id);
+            else selectedQueueIds.add(id);
+            updateQueueBulkUI();
+        }
+
+        function toggleQueueSelectAll(el) {
+            const rows = document.querySelectorAll('#queue-table-body input[type="checkbox"]');
+            if(el.checked) {
+                 // We need to get all IDs. Since rows are generated dynamically, 
+                 // we'll rely on reloading or scraping the onclick ID from the DOM is messy.
+                 // Better approach: Iterate through currently loaded posts (cached or re-fetch).
+                 // Simplest JS DOM approach:
+                 rows.forEach(cb => {
+                     cb.checked = true;
+                     const id = parseInt(cb.getAttribute('onchange').match(/\d+/)[0]);
+                     selectedQueueIds.add(id);
+                 });
+            } else {
+                rows.forEach(cb => cb.checked = false);
+                selectedQueueIds.clear();
+            }
+            updateQueueBulkUI();
+        }
+
+        function updateQueueBulkUI() {
+            const count = selectedQueueIds.size;
+            document.getElementById('queue-bulk-count').innerText = count;
+            const btn = document.getElementById('btn-queue-delete');
+            if(count > 0) btn.classList.remove('hidden'); else btn.classList.add('hidden');
+        }
+
+        async function bulkDeleteQueue() {
+            if(!confirm(`Delete ${selectedQueueIds.size} tasks?`)) return;
+            for(let id of selectedQueueIds) await apiCall(`/api/schedule/delete/${id}`, 'DELETE');
+            selectedQueueIds.clear();
+            updateQueueBulkUI();
+            loadQueue();
+            loadDashboard();
+            showToast("Bulk delete complete");
+        }
+
+        function startCountdownLoop() { if(countdownInterval) clearInterval(countdownInterval); const up = () => document.querySelectorAll('.queue-timer').forEach(e => { const diff = parseInt(e.dataset.time) - Math.floor(Date.now()/1000); if(diff<=0) { e.innerText = "Processing..."; e.classList.add('text-amber-600'); return; } const h=Math.floor(diff/3600), m=Math.floor((diff%3600)/60), s=diff%60; e.innerText = `in ${h}h ${m}m ${s}s`; }); up(); countdownInterval = setInterval(up, 1000); }
+        function openEditTimeModal(id, ts) { currentEditPostId = id; document.getElementById('edit-time-input').value = new Date((ts*1000)-(new Date().getTimezoneOffset()*60000)).toISOString().slice(0,16); toggleModal('edit-time-modal'); }
+        async function submitEditTime() { const t = Math.floor(new Date(document.getElementById('edit-time-input').value).getTime()/1000); await apiCall(`/api/schedule/edit_time/${currentEditPostId}`, 'POST', {newTime:t}); toggleModal('edit-time-modal'); loadQueue(); }
+        async function deletePost(id) { if(confirm("Delete?")) await apiCall(`/api/schedule/delete/${id}`, 'DELETE'); loadQueue(); }
+        async function retryPost(id) { await apiCall(`/api/schedule/retry/${id}`, 'POST'); loadQueue(); showToast("Retrying..."); }
+        async function loadDashboard() { const p = await apiCall('/api/pages'); const s = await apiCall('/api/schedule'); if(p) document.getElementById('dash-pages-count').innerText = p.length; if(s) { document.getElementById('dash-scheduled-count').innerText = s.filter(x=>x.status==='scheduled').length; document.getElementById('dash-failed-count').innerText = s.filter(x=>x.status==='failed').length; } }
+
+        showSection('dashboard');
+    </script>
+</body>
+</html>
