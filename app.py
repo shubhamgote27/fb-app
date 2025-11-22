@@ -289,13 +289,16 @@ def api_pages():
         if not status['is_valid']:
             return jsonify({'error': status['page_name']}), 400
             
+        default_slots = "08:00,09:00,10:00,11:00,12:00,13:00,14:00,15:00,16:00,17:00,18:00,19:00,20:00"
+        
+        # FIX IS HERE: Use data['key'] instead of undefined variables
         new_page = Page(
-            page_name=data['name'],
-            page_id=data['id'],
-            access_token=data['token'],
-            time_slots=data.get('slots', Page.time_slots.default),
-            allow_images=data.get('allowImages', True),
-            allow_videos=data.get('allowVideos', True)
+            page_name=data['name'],   # Changed from 'name' to data['name']
+            page_id=data['id'],       # Changed from 'pid' to data['id']
+            access_token=data['token'], # Changed from 'token' to data['token']
+            allow_images=True,
+            allow_videos=True,
+            time_slots=default_slots
         )
         try:
             db.session.add(new_page)
@@ -328,8 +331,6 @@ def api_pages():
         db.session.rollback()
         app.logger.error(f"Critical error loading pages: {e}")
         return jsonify({'error': 'Internal server error while retrieving page list. Check server logs for details.'}), 500
-
-
 @app.route('/api/pages/<int:page_id>', methods=['DELETE'])
 def delete_page(page_id):
     page = Page.query.get(page_id)
