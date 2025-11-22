@@ -18,7 +18,7 @@ spec:
       containers:
       - name: fb-app
         # REPLACE THIS with your actual Docker Hub username and image
-        image: shubhamgote/fb-app:latest 
+        image: shubhamgote/fb-app:v2 
         ports:
         - containerPort: 80
         imagePullPolicy: Always
