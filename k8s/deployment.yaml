@@ -6,7 +6,7 @@ metadata:
   labels:
     app: fb-app
 spec:
-  replicas: 4
+  replicas: 1
   selector:
     matchLabels:
       app: fb-app
