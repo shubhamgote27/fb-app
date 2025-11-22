@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: fb-app-service
+  namespace: default
+spec:
+  selector:
+    app: fb-app
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 30007 # Access via http://<EC2-IP>:30007
